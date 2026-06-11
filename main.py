@@ -35,29 +35,66 @@ def get_extension(filename):
     return filename[dot:].lower()
 
 
+def is_safe_path(path):
+    if ".." in path:
+        return False
+
+    if path.startswith("/"):
+        return False
+
+    if path == "":
+        return False
+
+    parts = path.split("/")
+    for part in parts:
+        if part == "" or part.startswith("."):
+            return False
+
+    return True
+
+
+def map_url_to_file(url_path):
+    url_path = url_path.split("?", 1)[0]
+
+    if url_path == "/":
+        return "/site/index.html"
+
+    # Remove first slash
+    path = url_path.lstrip("/")
+
+    if path in BLOCKED_ROOT_FILES:
+        return None
+    
+    if path.startswith("data/"):
+        if not is_safe_path(path):
+            return None
+
+        ext = get_extension(path)
+
+        # Keep data public, but limited
+        if ext not in [".csv", ".json", ".txt"]:
+            return None
+
+        return "/" + path
+
+    if path.startswith("control/"):
+        return None
+
+    if not is_safe_path(path):
+        return None
+
+    return "/site/" + path
+
+
 def get_path(request):
     try:
         request = request.decode("utf-8", "ignore")
         first_line = request.split("\r\n")[0]
-        path = first_line.split(" ")[1]
+        url_path = first_line.split(" ")[1]
     except Exception:
-        return get_file("index.html")
+        return "/site/index.html"
 
-    path = path.split("?")[0]
-
-    if path == "/":
-        return get_file("index.html")
-
-    filename = path.lstrip("/")
-
-    return get_file(filename)
-
-def get_file(file_path):
-    # Simple safety rule: only serve files from root folder
-    if ("/" in file_path or ".." in file_path) or (file_path in BLOCKED):
-        return None
-
-    return f"/site/{file_path}"
+    return map_url_to_file(url_path)
 
 
 def send_text(conn, status, text):
@@ -78,10 +115,6 @@ def send_file(conn, filename):
     print("Serving:", filename)
 
     if filename is None:
-        send_text(conn, "400 Bad Request", "Bad request")
-        return
-
-    if filename in BLOCKED:
         send_text(conn, "403 Forbidden", "Forbidden")
         return
 
