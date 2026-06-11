@@ -3,67 +3,28 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ESP32 Dashboard</title>
+  <title>ESP32 CSV Dashboard</title>
 
-  <style>
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #f2eadc;
-      color: #1f1f1f;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-    }
-
-    .card {
-      width: 90%;
-      max-width: 700px;
-      background: #fffaf0;
-      border-radius: 18px;
-      padding: 24px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-      text-align: center;
-    }
-
-    h1 {
-      margin-top: 0;
-      color: #1E228E;
-    }
-
-    img {
-      width: 100%;
-      max-width: 500px;
-      height: auto;
-      border-radius: 14px;
-      margin-top: 16px;
-      display: block;
-      margin-left: auto;
-      margin-right: auto;
-    }
-
-    .status {
-      margin-top: 20px;
-      padding: 12px;
-      border-radius: 10px;
-      background: #e8dfce;
-    }
-  </style>
+  <link rel="stylesheet" href="style.css">
+  <script src="script.js" defer></script>
 </head>
 
 <body>
-  <main class="card">
-    <h1>ESP32 Dashboard</h1>
+  <main>
+    <h1>ESP32 CSV Dashboard</h1>
+    <p>Simple graph demo using CSV files from the ESP32.</p>
 
-    <p>The ESP32 web server is running successfully.</p>
+    <section class="card">
+      <h2>Temperature</h2>
+      <p id="temperatureValue">Loading...</p>
+      <canvas id="temperatureChart" width="600" height="250"></canvas>
+    </section>
 
-    <img src="topgear.jpg" alt="Top Gear image">
-
-    <div class="status">
-      Access point: <strong>active</strong><br>
-      Address: <strong>192.168.4.1</strong>
-    </div>
+    <section class="card">
+      <h2>RGB Color Sensor</h2>
+      <p id="colorValue">Loading...</p>
+      <canvas id="colorChart" width="600" height="250"></canvas>
+    </section>
   </main>
 </body>
 </html>
