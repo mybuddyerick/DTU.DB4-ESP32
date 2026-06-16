@@ -19,7 +19,7 @@ BDATA = 0x1A
 
 
 class TCS34725:
-    def __init__(self, sda_pin=21, scl_pin=22, freq=50000):
+    def __init__(self, sda_pin=21, scl_pin=22, freq=50000, led_pin=None):
         self.sda_pin = sda_pin
         self.scl_pin = scl_pin
 
@@ -29,6 +29,20 @@ class TCS34725:
             scl=Pin(scl_pin),
             freq=freq
         )
+
+        self.led = None
+
+        if led_pin is not None:
+            self.led = Pin(led_pin, Pin.OUT)
+            self.led_off()
+
+    def led_on(self):
+        if self.led is not None:
+            self.led.value(1)
+
+    def led_off(self):
+        if self.led is not None:
+            self.led.value(0)
 
     def scan(self):
         try:
@@ -67,6 +81,8 @@ class TCS34725:
         return self.read_reg(ID)
 
     def init(self):
+        self.led_off()
+
         # Power on
         self.write_reg(ENABLE, 0x01)
         sleep(0.1)
