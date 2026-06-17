@@ -1,4 +1,4 @@
-from control.drivers.pump_driver import Pump
+from control.drivers.pump import Pump
 
 
 class PumpsControl:

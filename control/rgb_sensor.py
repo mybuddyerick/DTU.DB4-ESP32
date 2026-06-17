@@ -1,7 +1,7 @@
 import os
 from time import ticks_ms, ticks_diff
 
-from control.drivers.tcs34725_driver import TCS34725
+from control.drivers.tcs34725 import TCS34725
 
 
 class RGBSensorControl:

@@ -1,7 +1,7 @@
 import os
 from time import ticks_ms, ticks_diff
 
-from control.drivers.thermistor_driver import init_temp_sensor, read_temp_details
+from control.drivers.thermistor import init_temp_sensor, read_temp_details
 
 
 class TemperatureControl:

@@ -1,4 +1,4 @@
-from control.drivers.relay_driver import Relay
+from control.drivers.relay import Relay
 
 
 class PeltierControl:

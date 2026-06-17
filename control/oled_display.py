@@ -1,7 +1,7 @@
 from machine import Pin, SoftI2C
 from time import sleep_ms
 
-from control.drivers.oled_driver import SSD1306_I2C
+from control.drivers.oled import SSD1306_I2C
 
 
 class OLEDDisplay:
