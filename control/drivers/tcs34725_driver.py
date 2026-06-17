@@ -19,9 +19,10 @@ BDATA = 0x1A
 
 
 class TCS34725:
-    def __init__(self, sda_pin=21, scl_pin=22, freq=50000, led_pin=None):
+    def __init__(self, sda_pin=21, scl_pin=22, freq=50000, led_pin=None, led_active_high=True):
         self.sda_pin = sda_pin
         self.scl_pin = scl_pin
+        self.led_active_high = led_active_high
 
         self.i2c = I2C(
             0,
@@ -38,11 +39,11 @@ class TCS34725:
 
     def led_on(self):
         if self.led is not None:
-            self.led.value(1)
+            self.led.value(1 if self.led_active_high else 0)
 
     def led_off(self):
         if self.led is not None:
-            self.led.value(0)
+            self.led.value(0 if self.led_active_high else 1)
 
     def scan(self):
         try:
@@ -74,7 +75,6 @@ class TCS34725:
             COMMAND_BIT | AUTO_INCREMENT | reg,
             2
         )
-
         return data[0] | (data[1] << 8)
 
     def sensor_id(self):

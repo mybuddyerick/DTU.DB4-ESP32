@@ -31,35 +31,27 @@ class SSD1306:
         self.height = height
         self.external_vcc = external_vcc
         self.pages = self.height // 8
-        # Note the subclass must initialize self.framebuf to a framebuffer.
-        # This is necessary because the underlying data buffer is different
-        # between I2C and SPI implementations (I2C needs an extra byte).
         self.poweron()
         self.init_display()
 
     def init_display(self):
         for cmd in (
-            SET_DISP | 0x00, # off
-            # address setting
-            SET_MEM_ADDR, 0x00, # horizontal
-            # resolution and layout
+            SET_DISP | 0x00,  # off
+            SET_MEM_ADDR, 0x00,  # horizontal
             SET_DISP_START_LINE | 0x00,
-            SET_SEG_REMAP | 0x01, # column addr 127 mapped to SEG0
+            SET_SEG_REMAP | 0x01,
             SET_MUX_RATIO, self.height - 1,
-            SET_COM_OUT_DIR | 0x08, # scan from COM[N] to COM0
+            SET_COM_OUT_DIR | 0x08,
             SET_DISP_OFFSET, 0x00,
             SET_COM_PIN_CFG, 0x02 if self.height == 32 else 0x12,
-            # timing and driving scheme
             SET_DISP_CLK_DIV, 0x80,
             SET_PRECHARGE, 0x22 if self.external_vcc else 0xf1,
-            SET_VCOM_DESEL, 0x30, # 0.83*Vcc
-            # display
-            SET_CONTRAST, 0xff, # maximum
-            SET_ENTIRE_ON, # output follows RAM contents
-            SET_NORM_INV, # not inverted
-            # charge pump
+            SET_VCOM_DESEL, 0x30,
+            SET_CONTRAST, 0xff,
+            SET_ENTIRE_ON,
+            SET_NORM_INV,
             SET_CHARGE_PUMP, 0x10 if self.external_vcc else 0x14,
-            SET_DISP | 0x01): # on
+            SET_DISP | 0x01):
             self.write_cmd(cmd)
         self.fill(0)
         self.show()
@@ -78,7 +70,6 @@ class SSD1306:
         x0 = 0
         x1 = self.width - 1
         if self.width == 64:
-            # displays with width of 64 pixels are shifted by 32
             x0 += 32
             x1 += 32
         self.write_cmd(SET_COL_ADDR)
@@ -107,24 +98,27 @@ class SSD1306_I2C(SSD1306):
         self.i2c = i2c
         self.addr = addr
         self.temp = bytearray(2)
-        # Add an extra byte to the data buffer to hold an I2C data/command byte
-        # to use hardware-compatible I2C transactions.  A memoryview of the
-        # buffer is used to mask this byte from the framebuffer operations
-        # (without a major memory hit as memoryview doesn't copy to a separate
-        # buffer).
         self.buffer = bytearray(((height // 8) * width) + 1)
-        self.buffer[0] = 0x40  # Set first byte of data buffer to Co=0, D/C=1
-        self.framebuf = framebuf.FrameBuffer1(memoryview(self.buffer)[1:], width, height)
+        self.buffer[0] = 0x40
+
+        try:
+            self.framebuf = framebuf.FrameBuffer1(memoryview(self.buffer)[1:], width, height)
+        except AttributeError:
+            self.framebuf = framebuf.FrameBuffer(
+                memoryview(self.buffer)[1:],
+                width,
+                height,
+                framebuf.MONO_VLSB
+            )
+
         super().__init__(width, height, external_vcc)
 
     def write_cmd(self, cmd):
-        self.temp[0] = 0x80 # Co=1, D/C#=0
+        self.temp[0] = 0x80
         self.temp[1] = cmd
         self.i2c.writeto(self.addr, self.temp)
 
     def write_framebuf(self):
-        # Blast out the frame buffer using a single I2C transaction to support
-        # hardware I2C interfaces.
         self.i2c.writeto(self.addr, self.buffer)
 
     def poweron(self):
