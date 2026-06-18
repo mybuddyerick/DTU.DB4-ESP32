@@ -1,6 +1,7 @@
 import os
 from time import ticks_ms, ticks_diff
 
+from config.features import FEATURES
 from control.drivers.tcs34725 import TCS34725
 
 
@@ -12,19 +13,30 @@ class RGBSensorControl:
         sda_pin=21,
         scl_pin=22,
         led_pin=23,
-        verbose=True
+        verbose=None,
+        log_enabled=None
     ):
         self.csv_path = csv_path
         self.interval_ms = interval_ms
+
+        if verbose is None:
+            verbose = FEATURES["print_rgb"]
+
+        if log_enabled is None:
+            log_enabled = FEATURES["log_rgb"]
+
         self.verbose = verbose
+        self.log_enabled = log_enabled
 
         self.sensor = None
         self.enabled = False
         self.latest = None
         self.last_log_time = ticks_ms()
 
-        self._ensure_data_folder()
-        self._ensure_csv_header()
+        if self.log_enabled:
+            self._ensure_data_folder()
+            self._reset_csv_file()
+
         self._setup_sensor(sda_pin, scl_pin, led_pin)
 
     def _ensure_data_folder(self):
@@ -33,19 +45,11 @@ class RGBSensorControl:
         except OSError:
             pass
 
-    def _ensure_csv_header(self):
-        needs_header = False
+    def _reset_csv_file(self):
+        with open(self.csv_path, "w") as file:
+            file.write("time_ms,clear,red,green,blue\n")
 
-        try:
-            size = os.stat(self.csv_path)[6]
-            if size == 0:
-                needs_header = True
-        except OSError:
-            needs_header = True
-
-        if needs_header:
-            with open(self.csv_path, "w") as file:
-                file.write("time_ms,clear,red,green,blue")
+        print("RGB CSV reset:", self.csv_path)
 
     def _setup_sensor(self, sda_pin, scl_pin, led_pin):
         try:
@@ -71,7 +75,13 @@ class RGBSensorControl:
             self.sensor.led_off()
 
             self.enabled = True
-            print("RGB logger enabled:", self.csv_path)
+
+            print("RGB sensor enabled.")
+
+            if self.log_enabled:
+                print("RGB CSV logging enabled:", self.csv_path)
+            else:
+                print("RGB CSV logging disabled.")
 
         except Exception as error:
             print("RGB setup failed:", error)
@@ -102,7 +112,8 @@ class RGBSensorControl:
                 "blue": values["blue"]
             }
 
-            self._write_row(self.latest)
+            if self.log_enabled:
+                self._write_row(self.latest)
 
             if self.verbose:
                 print(
@@ -120,6 +131,10 @@ class RGBSensorControl:
             self._recover()
             return self.latest
 
+        except Exception as error:
+            print("RGB unexpected error:", error)
+            return self.latest
+
     def _write_row(self, values):
         line = "{},{},{},{},{}".format(
             values["time_ms"],
@@ -130,7 +145,7 @@ class RGBSensorControl:
         )
 
         with open(self.csv_path, "a") as file:
-            file.write(line)
+            file.write(line + "\n")
 
     def _recover(self):
         try:
@@ -139,6 +154,22 @@ class RGBSensorControl:
             print("RGB recovered.")
         except Exception as error:
             print("RGB recovery failed:", error)
+
+    def enable_logging(self):
+        self.log_enabled = True
+        self._ensure_data_folder()
+        self._reset_csv_file()
+        print("RGB CSV logging enabled:", self.csv_path)
+
+    def disable_logging(self):
+        self.log_enabled = False
+        print("RGB CSV logging disabled.")
+
+    def set_logging(self, enabled):
+        if enabled:
+            self.enable_logging()
+        else:
+            self.disable_logging()
 
     def led_off(self):
         if self.sensor is not None:

@@ -1,6 +1,7 @@
 import os
 from time import ticks_ms, ticks_diff
 
+from config.features import FEATURES
 from control.drivers.thermistor import init_temp_sensor, read_temp_details
 
 
@@ -10,20 +11,31 @@ class TemperatureControl:
         csv_path="/data/temp_log.csv",
         interval_ms=1000,
         adc_pin=34,
-        verbose=True
+        verbose=None,
+        log_enabled=None
     ):
         self.csv_path = csv_path
         self.interval_ms = interval_ms
         self.adc_pin = adc_pin
+
+        if verbose is None:
+            verbose = FEATURES["print_temperature"]
+
+        if log_enabled is None:
+            log_enabled = FEATURES["log_temperature"]
+
         self.verbose = verbose
+        self.log_enabled = log_enabled
 
         self.sensor = None
         self.enabled = False
         self.latest = None
         self.last_log_time = ticks_ms()
 
-        self._ensure_data_folder()
-        self._ensure_csv_header()
+        if self.log_enabled:
+            self._ensure_data_folder()
+            self._reset_csv_file()
+
         self._setup_sensor()
 
     def _ensure_data_folder(self):
@@ -32,27 +44,24 @@ class TemperatureControl:
         except OSError:
             pass
 
-    def _ensure_csv_header(self):
-        needs_header = False
+    def _reset_csv_file(self):
+        with open(self.csv_path, "w") as file:
+            file.write("time_ms,temp_c,raw_average,voltage,resistance\n")
 
-        try:
-            size = os.stat(self.csv_path)[6]
-            if size == 0:
-                needs_header = True
-        except OSError:
-            needs_header = True
-
-        if needs_header:
-            with open(self.csv_path, "w") as file:
-                file.write("time_ms,temp_c,raw_average,voltage,resistance")
+        print("Temperature CSV reset:", self.csv_path)
 
     def _setup_sensor(self):
         try:
             self.sensor = init_temp_sensor(self.adc_pin)
             self.enabled = True
 
-            print("Temperature logger enabled:", self.csv_path)
+            print("Temperature sensor enabled.")
             print("Thermistor ADC pin: GPIO", self.adc_pin)
+
+            if self.log_enabled:
+                print("Temperature CSV logging enabled:", self.csv_path)
+            else:
+                print("Temperature CSV logging disabled.")
 
         except Exception as error:
             print("Temperature setup failed:", error)
@@ -79,7 +88,8 @@ class TemperatureControl:
                 "resistance": details["resistance"]
             }
 
-            self._write_row(self.latest)
+            if self.log_enabled:
+                self._write_row(self.latest)
 
             if self.verbose:
                 print(
@@ -106,7 +116,23 @@ class TemperatureControl:
         )
 
         with open(self.csv_path, "a") as file:
-            file.write(line)
+            file.write(line + "\n")
+
+    def enable_logging(self):
+        self.log_enabled = True
+        self._ensure_data_folder()
+        self._reset_csv_file()
+        print("Temperature CSV logging enabled:", self.csv_path)
+
+    def disable_logging(self):
+        self.log_enabled = False
+        print("Temperature CSV logging disabled.")
+
+    def set_logging(self, enabled):
+        if enabled:
+            self.enable_logging()
+        else:
+            self.disable_logging()
 
     def get_latest(self):
         return self.latest

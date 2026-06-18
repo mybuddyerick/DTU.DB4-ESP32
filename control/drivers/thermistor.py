@@ -1,5 +1,4 @@
-from machine import Pin
-from machine import ADC
+from machine import Pin, ADC
 from math import log
 
 
@@ -11,55 +10,76 @@ TEMP_NOM = 25
 NUM_SAMPLES = 25
 THERM_B_COEFF = 3950
 ADC_MAX = 1023
-ADC_Vmax = 3.15
+ADC_VMAX = 3.15
+
+
+class Thermistor:
+    def __init__(self, name="thermistor", adc_pin=34):
+        self.name = name
+        self.adc_pin = adc_pin
+
+        self.adc = ADC(Pin(adc_pin))
+        self.adc.atten(ADC.ATTN_11DB)
+        self.adc.width(ADC.WIDTH_10BIT)
+
+        print(self.name, "initialized on GPIO", adc_pin)
+
+    def read_raw_average(self):
+        total = 0
+
+        for _ in range(NUM_SAMPLES):
+            total += self.adc.read()
+
+        return total / NUM_SAMPLES
+
+    def read_details(self):
+        raw_average = self.read_raw_average()
+        raw_index = round(raw_average)
+
+        if raw_index < 0:
+            raw_index = 0
+
+        if raw_index > ADC_MAX:
+            raw_index = ADC_MAX
+
+        voltage = adc_V_lookup[raw_index]
+
+        adc_linear = ADC_MAX * voltage / ADC_VMAX
+
+        if adc_linear <= 0:
+            adc_linear = 1
+
+        if adc_linear >= ADC_MAX:
+            adc_linear = ADC_MAX - 1
+
+        resistance = (SER_RES * adc_linear) / (ADC_MAX - adc_linear)
+
+        steinhart = log(resistance / NOM_RES) / THERM_B_COEFF
+        steinhart += 1.0 / (TEMP_NOM + 273.15)
+        temp_c = (1.0 / steinhart) - 273.15
+
+        return {
+            "temp_c": temp_c,
+            "raw_average": raw_average,
+            "voltage": voltage,
+            "resistance": resistance
+        }
+
+    def read_temp(self):
+        details = self.read_details()
+        return details["temp_c"]
 
 
 def init_temp_sensor(temp_sens_adc_pin_no=34):
-    adc = ADC(Pin(temp_sens_adc_pin_no))
-    adc.atten(ADC.ATTN_11DB)
-    adc.width(ADC.WIDTH_10BIT)
-    return adc
+    return Thermistor(
+        name="thermistor",
+        adc_pin=temp_sens_adc_pin_no
+    )
 
 
 def read_temp_details(temp_sens):
-    raw_read = []
-
-    for _ in range(NUM_SAMPLES):
-        raw_read.append(temp_sens.read())
-
-    raw_average = sum(raw_read) / NUM_SAMPLES
-    raw_index = round(raw_average)
-
-    if raw_index < 0:
-        raw_index = 0
-
-    if raw_index > ADC_MAX:
-        raw_index = ADC_MAX
-
-    voltage = adc_V_lookup[raw_index]
-
-    adc_linear = ADC_MAX * voltage / ADC_Vmax
-
-    if adc_linear <= 0:
-        adc_linear = 1
-
-    if adc_linear >= ADC_MAX:
-        adc_linear = ADC_MAX - 1
-
-    resistance = (SER_RES * adc_linear) / (ADC_MAX - adc_linear)
-
-    steinhart = log(resistance / NOM_RES) / THERM_B_COEFF
-    steinhart += 1.0 / (TEMP_NOM + 273.15)
-    temp_c = (1.0 / steinhart) - 273.15
-
-    return {
-        "temp_c": temp_c,
-        "raw_average": raw_average,
-        "voltage": voltage,
-        "resistance": resistance
-    }
+    return temp_sens.read_details()
 
 
 def read_temp(temp_sens):
-    details = read_temp_details(temp_sens)
-    return details["temp_c"]
+    return temp_sens.read_temp()
