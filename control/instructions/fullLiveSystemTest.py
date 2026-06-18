@@ -12,7 +12,7 @@ from control.temperature import TemperatureControl
 from control.rgb_sensor import RGBSensorControl
 from control.helpers.pumps import PumpsControl
 from control.helpers.peltier import PeltierControl
-from control.helpers.oled_display import OLEDDisplay
+from control.helpers.oled_display import OLED
 
 if "/site" not in sys.path:
     sys.path.append("/site")
@@ -112,7 +112,7 @@ def _shutdown_all(oled, pumps, peltier, laser_relay, dashboard):
 
     if oled is not None:
         try:
-            oled.show_message(
+            oled.update_message(
                 "Full Live Test",
                 "STOPPED",
                 "Outputs OFF"
@@ -152,7 +152,7 @@ def _update_oled(oled, rgb_values, temp_values, pumps, peltier, laser_on):
             _on_off(laser_on)
         )
 
-        oled.show_message(
+        oled.update_message(
             "Full Live Test",
             temp_text,
             green_text,
@@ -220,13 +220,13 @@ def startup():
     try:
         stop_button = Pin(STOP_BUTTON_PIN, Pin.IN, Pin.PULL_UP)
 
-        oled = OLEDDisplay(
+        oled = OLED(
             sda_pin=PINS["oled"]["sda"],
             scl_pin=PINS["oled"]["scl"],
             addr=_oled_addr()
         )
 
-        oled.show_message(
+        oled.update_message(
             "Full Live Test",
             "Starting...",
             "GPIO0 stops"
@@ -351,7 +351,7 @@ def startup():
         last_terminal_update = ticks_ms()
         last_ws_update = ticks_ms()
 
-        oled.show_message(
+        oled.update_message(
             "Full Live Test",
             "System running",
             "GPIO0 stops",
