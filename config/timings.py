@@ -1,16 +1,16 @@
-TIMING = {
-    "rgb_log_interval_ms": 500,
-    "temperature_log_interval_ms": 500,
-    "oled_update_interval_ms": 1000,
+TIMINGS = {
+    "step": 0.5,
 
-    "water_pump_every_ms": 20000,
-    "water_pump_run_ms": 3000,
+    "rgb_log_interval": 0.5,
+    "temperature_log_interval": 0.5,
+    "oled_update_interval": 1.0,
 
-    "spray_pump_every_ms": 30000,
-    "spray_pump_run_ms": 3000,
+    "water_pump_every": 20.0,
+    "water_pump_run": 3.0,
 
-    "peltier_every_ms": 60000,
-    "peltier_run_ms": 5000,
+    "spray_pump_every": 30.0,
+    "spray_pump_run": 3.0,
 
-    "main_loop_delay_ms": 50,
+    "peltier_every": 60.0,
+    "peltier_run": 5.0,
 }
