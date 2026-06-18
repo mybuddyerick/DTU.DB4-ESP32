@@ -1,6 +1,6 @@
 TIMING = {
-    "rgb_log_interval_ms": 1000,
-    "temperature_log_interval_ms": 1000,
+    "rgb_log_interval_ms": 500,
+    "temperature_log_interval_ms": 500,
     "oled_update_interval_ms": 1000,
 
     "water_pump_every_ms": 20000,

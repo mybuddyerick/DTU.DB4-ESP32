@@ -20,14 +20,14 @@ PINS = {
 
     # 5V water pump using L9110S
     "water_pump": {
-        "a1": 18,
-        "a2": 19,
+        "1": 18,
+        "2": 19,
     },
 
     # 12V diaphragm spray pump using L298
-    "spray_pump": {
-        "ina": 25,
-        "inb": 26,
+    "waste_pump": {
+        "1": 25,
+        "2": 26,
     },
 
     # Peltier relay module
