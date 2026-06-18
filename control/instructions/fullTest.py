@@ -6,7 +6,14 @@ from control.helpers.peltier import PeltierControl
 
 import time
 
+count = 0
+
+oled: OLED = None
+peltier: PeltierControl = None
+laser_relay: Relay = None
+
 def startup():
+    global oled, peltier, laser_relay
     print ('starting...')
 
     oled = OLED(PINS["oled"]["sda"], PINS["oled"]["scl"], PINS["oled"]["addr"])
@@ -23,9 +30,10 @@ def startup():
         step_wait()
 
 def step():
-    
+    global oled, count
 
-    ""
+    oled.update_message(nline1=str(count))
+    count += 1
 
 def step_wait():
-    time.sleep(TIMINGS[step])
+    time.sleep(TIMINGS["step"])

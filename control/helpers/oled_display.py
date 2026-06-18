@@ -18,9 +18,9 @@ class OLED:
         self.max_errors_before_disable = 10
 
         self.status = "Init"
-        self.l1     = ""
-        self.l2     = ""
-        self.l3     = ""
+        self.line1  = ""
+        self.line2  = ""
+        self.line3  = ""
 
         self._setup()
 
@@ -54,7 +54,7 @@ class OLED:
             self.enabled = True
             self.error_count = 0
 
-            self.show_message(
+            self.update_message(
                 "DB4 ESP32",
                 "OLED ready",
                 "I2C: {}".format(hex(self.addr))
@@ -115,7 +115,7 @@ class OLED:
 
         self.recover()
 
-    def update_message(self, status=None, line1=None, line2=None, line3=None):
+    def update_message(self, status=None, nline1=None, nline2=None, nline3=None):
         if not self.enabled or self.display is None:
             return
 
@@ -123,9 +123,9 @@ class OLED:
             self.display.fill(0)
 
             self.display.text(str(status) if status else self.status, 0, 0)
-            self.display.text(str(line1) if line1 else self.line1, 0, 16)
-            self.display.text(str(line2) if line2 else self.line2, 0, 32)
-            self.display.text(str(line3) if line3 else self.line3, 0, 48)
+            self.display.text(str(nline1) if nline1 else self.line1, 0, 16)
+            self.display.text(str(nline2) if nline2 else self.line2, 0, 32)
+            self.display.text(str(nline3) if nline3 else self.line3, 0, 48)
 
             self.display.show()
 
