@@ -1,16 +1,18 @@
 from time import sleep_ms, ticks_ms, ticks_diff
 import sys
 
+from machine import Pin
+
 from config.pins import PINS
 from config.directories import PATHS
-from config.timings import TIMING
+from config.timings import TIMINGS
 
 from control.drivers import relay
 from control.temperature import TemperatureControl
 from control.rgb_sensor import RGBSensorControl
 from control.helpers.pumps import PumpsControl
 from control.helpers.peltier import PeltierControl
-from control.oled_display import OLEDDisplay
+from control.helpers.oled_display import OLEDDisplay
 
 if "/site" not in sys.path:
     sys.path.append("/site")
@@ -20,7 +22,11 @@ from live_dashboard import LiveDashboard
 
 OLED_UPDATE_MS = 1000
 TERMINAL_UPDATE_MS = 1000
-LASER_REFRESH_MS = 1000
+
+STOP_BUTTON_PIN = 0
+
+WASTE_PUMP_ON_MS = 5000
+WASTE_PUMP_OFF_MS = 15000
 
 
 def _oled_addr():
@@ -35,38 +41,7 @@ def _oled_addr():
 def _on_off(value):
     if value:
         return "ON"
-
     return "OFF"
-
-
-# The PumpsControl class may still internally call the pumps
-# "water" and "spray", but in the experiment naming:
-#
-# water pump = cooler pump = 5V pump
-# spray pump = waste pump = 12V pump
-
-def _cooler_on(pumps):
-    pumps.water_on()
-
-
-def _cooler_off(pumps):
-    pumps.water_off()
-
-
-def _cooler_running(pumps):
-    return pumps.water_running()
-
-
-def _waste_on(pumps):
-    pumps.spray_on()
-
-
-def _waste_off(pumps):
-    pumps.spray_off()
-
-
-def _waste_running(pumps):
-    return pumps.spray_running()
 
 
 def _safe_get_latest(obj):
@@ -78,6 +53,78 @@ def _safe_get_latest(obj):
 
     except Exception:
         return None
+
+
+def _cooler_running(pumps):
+    # Cooler pump = 5V pump = old "water" pump in PumpsControl
+    return pumps.water_running()
+
+
+def _waste_running(pumps):
+    # Waste pump = 12V pump = old "spray" pump in PumpsControl
+    return pumps.spray_running()
+
+
+def _cooler_on(pumps):
+    pumps.water_on()
+
+
+def _waste_on(pumps):
+    pumps.spray_on()
+
+
+def _cooler_off(pumps):
+    pumps.water_off()
+
+
+def _waste_off(pumps):
+    pumps.spray_off()
+
+
+def _button_pressed(button):
+    # GPIO0 / BOOT button is normally active-low.
+    return button.value() == 0
+
+
+def _shutdown_all(oled, pumps, peltier, laser_relay, dashboard):
+    print()
+    print("Stopping full live system test.")
+    print("Turning all outputs OFF.")
+
+    if pumps is not None:
+        try:
+            _cooler_off(pumps)
+            _waste_off(pumps)
+        except Exception as error:
+            print("Pump shutdown error:", error)
+
+    if peltier is not None:
+        try:
+            peltier.off()
+        except Exception as error:
+            print("Peltier shutdown error:", error)
+
+    if laser_relay is not None:
+        try:
+            laser_relay.off()
+        except Exception as error:
+            print("Laser relay shutdown error:", error)
+
+    if oled is not None:
+        try:
+            oled.show_message(
+                "Full Live Test",
+                "STOPPED",
+                "Outputs OFF"
+            )
+        except Exception:
+            pass
+
+    if dashboard is not None:
+        try:
+            dashboard.stop()
+        except Exception as error:
+            print("Dashboard stop error:", error)
 
 
 def _update_oled(oled, rgb_values, temp_values, pumps, peltier, laser_on):
@@ -95,29 +142,28 @@ def _update_oled(oled, rgb_values, temp_values, pumps, peltier, laser_on):
         if rgb_values is not None:
             green_text = "Green: {}".format(rgb_values["green"])
 
-        pump_text = "Cooler:{} Waste:{}".format(
+        pump_text = "Cool:{} Waste:{}".format(
             _on_off(_cooler_running(pumps)),
             _on_off(_waste_running(pumps))
         )
 
-        output_text = "Pel:{} Laser:{}".format(
+        output_text = "Pel:{} Las:{}".format(
             _on_off(peltier.running()),
             _on_off(laser_on)
         )
 
         oled.show_message(
-            "Full Test",
+            "Full Live Test",
             temp_text,
             green_text,
-            pump_text,
-            output_text
+            pump_text + " " + output_text
         )
 
     except Exception as error:
         print("OLED update error:", error)
 
 
-def _print_status(rgb_values, temp_values, pumps, peltier, laser_on):
+def _print_status(rgb_values, temp_values, pumps, peltier, laser_on, waste_cycle_state):
     print()
     print("===== FULL LIVE SYSTEM TEST =====")
 
@@ -133,8 +179,10 @@ def _print_status(rgb_values, temp_values, pumps, peltier, laser_on):
 
     print("Cooler pump 5V:", _on_off(_cooler_running(pumps)))
     print("Waste pump 12V:", _on_off(_waste_running(pumps)))
+    print("Waste pump cycle:", waste_cycle_state)
     print("Peltier:", _on_off(peltier.running()))
     print("Laser relay:", _on_off(laser_on))
+    print("Stop button: GPIO 0")
     print("Dashboard: http://192.168.4.1")
 
 
@@ -149,21 +197,29 @@ def startup():
         "on": False
     }
 
+    waste_cycle = {
+        "state": "ON",
+        "last_change": ticks_ms()
+    }
+
     print()
     print("====================================")
     print(" FULL LIVE SYSTEM TEST")
     print("====================================")
     print("Cooler pump 5V: always ON")
-    print("Waste pump 12V: always ON")
-    print("OLED: ON")
+    print("Waste pump 12V: 5 seconds ON, 15 seconds OFF")
+    print("OLED: ON, only green RGB value shown")
     print("Web dashboard: ON")
     print("RGB sensor: ON")
     print("Temperature sensor: ON")
-    print("Peltier: always OFF")
-    print("Laser relay: always ON")
+    print("Peltier: OFF")
+    print("Laser relay: ON")
+    print("Stop button: GPIO 0")
     print()
 
     try:
+        stop_button = Pin(STOP_BUTTON_PIN, Pin.IN, Pin.PULL_UP)
+
         oled = OLEDDisplay(
             sda_pin=PINS["oled"]["sda"],
             scl_pin=PINS["oled"]["scl"],
@@ -171,21 +227,21 @@ def startup():
         )
 
         oled.show_message(
-            "Full Test",
+            "Full Live Test",
             "Starting...",
-            "Please wait"
+            "GPIO0 stops"
         )
 
         temperature = TemperatureControl(
             csv_path=PATHS["temperature_csv"],
-            interval_ms=TIMING["temperature_log_interval_ms"],
+            interval_ms=TIMINGS["temperature_log_interval_ms"],
             adc_pin=PINS["temperature"]["adc"],
             verbose=True
         )
 
         rgb_sensor = RGBSensorControl(
             csv_path=PATHS["rgb_csv"],
-            interval_ms=TIMING["rgb_log_interval_ms"],
+            interval_ms=TIMINGS["rgb_log_interval_ms"],
             sda_pin=PINS["rgb"]["sda"],
             scl_pin=PINS["rgb"]["scl"],
             led_pin=PINS["rgb"]["led"],
@@ -203,7 +259,6 @@ def startup():
             relay_pin=PINS["peltier"]["relay"]
         )
 
-        # Same style as your working laser relay test.
         laser_relay = relay.Relay(
             "laser module",
             PINS["laser"]["relay"]
@@ -211,7 +266,7 @@ def startup():
 
         print(laser_relay)
 
-        # Required fixed output states.
+        # Initial required output states
         _cooler_on(pumps)
         _waste_on(pumps)
 
@@ -226,13 +281,22 @@ def startup():
             rgb_values = _safe_get_latest(rgb_sensor)
             temp_values = _safe_get_latest(temperature)
 
+            cooler_state = _cooler_running(pumps)
+            waste_state = _waste_running(pumps)
+            peltier_state = peltier.running()
+
             return {
                 "available": True,
                 "uptime_ms": ticks_diff(ticks_ms(), start_time),
 
                 "system": {
                     "mode": "full live system test",
-                    "dashboard": "running"
+                    "dashboard": "running",
+                    "stop_button_pin": STOP_BUTTON_PIN,
+                    "waste_pump_cycle": waste_cycle["state"],
+                    "waste_pump_on_ms": WASTE_PUMP_ON_MS,
+                    "waste_pump_off_ms": WASTE_PUMP_OFF_MS,
+                    "note": "cooler_pump is 5V, waste_pump is 12V"
                 },
 
                 "rgb": {
@@ -258,15 +322,15 @@ def startup():
                 },
 
                 "outputs": {
-                    "cooler_pump_5v": _cooler_running(pumps),
-                    "waste_pump_12v": _waste_running(pumps),
+                    # New names
+                    "cooler_pump": cooler_state,
+                    "waste_pump": waste_state,
+                    "peltier": peltier_state,
+                    "laser_relay": laser_state["on"],
 
-                    # Kept for the current simple dashboard table.
-                    "water_pump": _cooler_running(pumps),
-                    "spray_pump": _waste_running(pumps),
-
-                    "peltier": peltier.running(),
-                    "laser_relay": laser_state["on"]
+                    # Backwards-compatible names for current dashboard JS
+                    "water_pump": cooler_state,
+                    "spray_pump": waste_state
                 }
             }
 
@@ -282,42 +346,65 @@ def startup():
 
         last_oled_update = ticks_ms()
         last_terminal_update = ticks_ms()
-        last_laser_refresh = ticks_ms()
 
         oled.show_message(
-            "Full Test",
+            "Full Live Test",
             "System running",
-            "Dashboard:",
+            "GPIO0 stops",
             "192.168.4.1"
         )
 
         while True:
             now = ticks_ms()
 
+            # Stop immediately when GPIO0 button is pressed
+            if _button_pressed(stop_button):
+                sleep_ms(50)
+
+                if _button_pressed(stop_button):
+                    print("Stop button pressed.")
+                    _shutdown_all(oled, pumps, peltier, laser_relay, dashboard)
+                    return
+
             dashboard.update()
 
             rgb_values = rgb_sensor.update()
             temp_values = temperature.update()
 
-            # Make sure both pumps stay ON all the time.
+            # Cooler pump stays ON all the time
             if not _cooler_running(pumps):
                 print("Cooler pump 5V was OFF. Turning back ON.")
                 _cooler_on(pumps)
 
-            if not _waste_running(pumps):
-                print("Waste pump 12V was OFF. Turning back ON.")
-                _waste_on(pumps)
+            # Waste pump runs 5 seconds ON, then 15 seconds OFF
+            if waste_cycle["state"] == "ON":
+                if not _waste_running(pumps):
+                    _waste_on(pumps)
 
-            # Make sure Peltier stays OFF all the time.
+                if ticks_diff(now, waste_cycle["last_change"]) >= WASTE_PUMP_ON_MS:
+                    print("Waste pump 12V cycle: OFF for 15 seconds.")
+                    _waste_off(pumps)
+                    waste_cycle["state"] = "OFF"
+                    waste_cycle["last_change"] = now
+
+            else:
+                if _waste_running(pumps):
+                    _waste_off(pumps)
+
+                if ticks_diff(now, waste_cycle["last_change"]) >= WASTE_PUMP_OFF_MS:
+                    print("Waste pump 12V cycle: ON for 5 seconds.")
+                    _waste_on(pumps)
+                    waste_cycle["state"] = "ON"
+                    waste_cycle["last_change"] = now
+
+            # Keep Peltier OFF all the time
             if peltier.running():
                 print("Peltier was ON. Turning back OFF.")
                 peltier.off()
 
-            # Keep laser relay ON.
-            # This refreshes the relay every second, similar to your old working test,
-            # but without blocking the dashboard using time.sleep().
-            if ticks_diff(now, last_laser_refresh) >= LASER_REFRESH_MS:
-                last_laser_refresh = now
+            # Keep laser relay ON all the time
+            if not laser_state["on"]:
+                print("Laser relay was OFF. Turning back ON.")
                 laser_relay.on()
                 laser_state["on"] = True
 
@@ -326,7 +413,6 @@ def startup():
 
             if ticks_diff(now, last_oled_update) >= OLED_UPDATE_MS:
                 last_oled_update = now
-
                 _update_oled(
                     oled,
                     rgb_values,
@@ -338,39 +424,20 @@ def startup():
 
             if ticks_diff(now, last_terminal_update) >= TERMINAL_UPDATE_MS:
                 last_terminal_update = now
-
                 _print_status(
                     rgb_values,
                     temp_values,
                     pumps,
                     peltier,
-                    laser_state["on"]
+                    laser_state["on"],
+                    waste_cycle["state"]
                 )
 
-            sleep_ms(TIMING["main_loop_delay_ms"])
+            sleep_ms(TIMINGS["main_loop_delay_ms"])
 
     except KeyboardInterrupt:
         print("Full live system test stopped manually.")
-
-        if pumps is not None:
-            _cooler_off(pumps)
-            _waste_off(pumps)
-
-        if peltier is not None:
-            peltier.off()
-
-        if laser_relay is not None:
-            laser_relay.off()
-
-        if oled is not None:
-            oled.show_message(
-                "Full Test",
-                "Stopped",
-                "Outputs OFF"
-            )
-
-        if dashboard is not None:
-            dashboard.stop()
+        _shutdown_all(oled, pumps, peltier, laser_relay, dashboard)
 
     except Exception as error:
         print("Full live system test crashed:", error)
@@ -380,24 +447,6 @@ def startup():
         except Exception:
             pass
 
-        if pumps is not None:
-            _cooler_off(pumps)
-            _waste_off(pumps)
-
-        if peltier is not None:
-            peltier.off()
-
-        if laser_relay is not None:
-            laser_relay.off()
-
-        if oled is not None:
-            oled.show_message(
-                "Full Test",
-                "CRASHED",
-                "Outputs OFF"
-            )
-
-        if dashboard is not None:
-            dashboard.stop()
+        _shutdown_all(oled, pumps, peltier, laser_relay, dashboard)
 
         raise
