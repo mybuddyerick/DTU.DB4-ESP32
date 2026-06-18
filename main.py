@@ -1,8 +1,8 @@
 #from control.instructions import test_instructions as module
 #from control.instructions import pumpsTest as module
-#from control.instructions import fullLiveSystemTest as module
+from control.instructions import fullLiveSystemTest as module
 #from control.instructions import live_dashboard as module
-from control.instructions import fullTest as module
+#from control.instructions import fullTest as module
 
 def main():
     print()
