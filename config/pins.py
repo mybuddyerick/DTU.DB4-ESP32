@@ -37,7 +37,6 @@ PINS = {
 
     # laser relay module
     "laser": {
-        "relay-1": 33,
-        "relay-2": 27,
+        "relay": 33,
     }
 }
