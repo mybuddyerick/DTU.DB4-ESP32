@@ -4,7 +4,7 @@ from time import sleep_ms
 from control.drivers.oled import SSD1306_I2C
 
 
-class OLEDDisplay:
+class OLED:
     def __init__(self, sda_pin=4, scl_pin=2, addr=0x3C):
         self.sda_pin = sda_pin
         self.scl_pin = scl_pin
@@ -17,7 +17,14 @@ class OLEDDisplay:
         self.error_count = 0
         self.max_errors_before_disable = 10
 
+        self.status = "Init"
+        self.l1     = ""
+        self.l2     = ""
+        self.l3     = ""
+
         self._setup()
+
+        self.update_message(self)
 
     def _setup(self):
         try:
@@ -108,17 +115,17 @@ class OLEDDisplay:
 
         self.recover()
 
-    def show_message(self, line1="", line2="", line3="", line4=""):
+    def update_message(self, status=None, line1=None, line2=None, line3=None):
         if not self.enabled or self.display is None:
             return
 
         try:
             self.display.fill(0)
 
-            self.display.text(str(line1), 0, 0)
-            self.display.text(str(line2), 0, 16)
-            self.display.text(str(line3), 0, 32)
-            self.display.text(str(line4), 0, 48)
+            self.display.text(str(status) if status else self.status, 0, 0)
+            self.display.text(str(line1) if line1 else self.line1, 0, 16)
+            self.display.text(str(line2) if line2 else self.line2, 0, 32)
+            self.display.text(str(line3) if line3 else self.line3, 0, 48)
 
             self.display.show()
 
@@ -174,3 +181,7 @@ class OLEDDisplay:
 
         except OSError as error:
             self._handle_error(error)
+        
+    def set_status(self, new_status):
+        self.status = new_status
+        self.update_message
