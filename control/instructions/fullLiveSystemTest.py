@@ -18,7 +18,7 @@ if "/site" not in sys.path:
     sys.path.append("/site")
 
 from live_dashboard import LiveDashboard
-
+from control.helpers.web_sockets import WebSocketServer
 
 OLED_UPDATE_MS = 1000
 TERMINAL_UPDATE_MS = 1000
@@ -234,14 +234,14 @@ def startup():
 
         temperature = TemperatureControl(
             csv_path=PATHS["temperature_csv"],
-            interval_ms=TIMINGS["temperature_log_interval_ms"],
+            interval_ms=int(TIMINGS["temperature_log_interval"] * 1000),
             adc_pin=PINS["temperature"]["adc"],
             verbose=True
         )
 
         rgb_sensor = RGBSensorControl(
             csv_path=PATHS["rgb_csv"],
-            interval_ms=TIMINGS["rgb_log_interval_ms"],
+            interval_ms=int(TIMINGS["rgb_log_interval"] * 1000),
             sda_pin=PINS["rgb"]["sda"],
             scl_pin=PINS["rgb"]["scl"],
             led_pin=PINS["rgb"]["led"],
@@ -344,8 +344,12 @@ def startup():
 
         dashboard.start()
 
+        ws_server = WebSocketServer(port=81)
+        ws_server.start()
+
         last_oled_update = ticks_ms()
         last_terminal_update = ticks_ms()
+        last_ws_update = ticks_ms()
 
         oled.show_message(
             "Full Live Test",
@@ -367,6 +371,7 @@ def startup():
                     return
 
             dashboard.update()
+            ws_server.update()
 
             rgb_values = rgb_sensor.update()
             temp_values = temperature.update()
@@ -433,7 +438,11 @@ def startup():
                     waste_cycle["state"]
                 )
 
-            sleep_ms(TIMINGS["main_loop_delay_ms"])
+            if ticks_diff(now, last_ws_update) >= 500:
+                last_ws_update = now
+                ws_server.broadcast(status_func())
+
+            sleep_ms(int(TIMINGS["step"] * 1000))
 
     except KeyboardInterrupt:
         print("Full live system test stopped manually.")
