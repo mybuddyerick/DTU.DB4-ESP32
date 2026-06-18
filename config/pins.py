@@ -15,7 +15,7 @@ PINS = {
     "oled": {
         "sda": 4,
         "scl": 2,
-        "addr": "0x3C",
+        "addr": 0x3C,
     },
 
     # 5V water pump using L9110S
