@@ -27,7 +27,7 @@ def startup():
     oled.set_status("Found Devices")
     peltier.off()
 
-    scheduler = Scheduler(step_interval_ms=TIMINGS["step_ms"])
+    scheduler = Scheduler(step_interval_ms=TIMINGS["step"])
 
     scheduler.every(
         name="oled counter",

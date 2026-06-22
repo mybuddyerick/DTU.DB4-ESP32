@@ -1,5 +1,5 @@
 import time
-from ...config.timings import TIMINGS
+from config.timings import TIMINGS
 
 
 class Task:
