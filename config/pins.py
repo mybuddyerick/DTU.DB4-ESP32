@@ -18,13 +18,13 @@ PINS = {
         "addr": 0x3C,
     },
 
-    # 5V water pump using L9110S
-    "water_pump": {
+    # 5V cooler pump using L9110S
+    "cooler_pump": {
         "1": 18,
         "2": 19,
     },
 
-    # 12V diaphragm spray pump using L298
+    # 12V waste pump using L298
     "waste_pump": {
         "1": 25,
         "2": 26,
@@ -35,7 +35,7 @@ PINS = {
         "relay": 32,
     },
 
-    # laser relay module
+    # Laser relay module
     "laser": {
         "relay": 33,
     }

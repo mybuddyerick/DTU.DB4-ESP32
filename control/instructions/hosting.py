@@ -324,8 +324,8 @@ class WebServer:
             },
 
             "outputs": {
-                "water_pump": safe_call(self.pumps, "water_running", False),
-                "spray_pump": safe_call(self.pumps, "spray_running", False),
+                "cooler_pump": safe_call(self.pumps, "cooler_running", False),
+                "waste_pump": safe_call(self.pumps, "waste_running", False),
                 "peltier": safe_call(self.peltier, "running", False)
             }
         }

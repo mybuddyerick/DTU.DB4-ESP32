@@ -169,9 +169,9 @@ class OLED:
                 )
 
             if pumps is not None:
-                water_status = "ON" if pumps.water_running() else "OFF"
-                spray_status = "ON" if pumps.spray_running() else "OFF"
-                display.text("P1:{} P2:{}".format(water_status, spray_status), 0, 46)
+                cooler_status = "ON" if pumps.cooler_running() else "OFF"
+                waste_status = "ON" if pumps.waste_running() else "OFF"
+                display.text("C:{} W:{}".format(cooler_status, waste_status), 0, 46)
 
             if peltier is not None:
                 peltier_status = "ON" if peltier.running() else "OFF"

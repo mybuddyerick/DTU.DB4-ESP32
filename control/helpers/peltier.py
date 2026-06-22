@@ -13,15 +13,19 @@ class PeltierControl:
 
     def on(self):
         self.relay.on()
+        print("Peltier relay on.")
 
     def off(self):
         self.relay.off()
+        print("Peltier relay off.")
 
     def run_for(self, duration_ms):
         self.relay.run_for(duration_ms)
+        print("Peltier relay run for.")
 
     def update(self):
         self.relay.update()
+        print("Peltier relay update.")
 
     def running(self):
         return self.relay.running

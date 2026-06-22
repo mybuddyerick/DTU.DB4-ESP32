@@ -4,49 +4,49 @@ from control.drivers.pump import Pump
 class PumpsControl:
     def __init__(
         self,
-        water_pin_a=18,
-        water_pin_b=19,
-        spray_pin_a=25,
-        spray_pin_b=26
+        cooler_pin_a=18,
+        cooler_pin_b=19,
+        waste_pin_a=25,
+        waste_pin_b=26
     ):
-        self.water = Pump(
-            name="5V water pump",
-            pin_a=water_pin_a,
-            pin_b=water_pin_b
+        self.cooler = Pump(
+            name="cooler_pump 5V",
+            pin_a=cooler_pin_a,
+            pin_b=cooler_pin_b
         )
 
-        self.spray = Pump(
-            name="12V spray pump",
-            pin_a=spray_pin_a,
-            pin_b=spray_pin_b
+        self.waste = Pump(
+            name="waste_pump 12V",
+            pin_a=waste_pin_a,
+            pin_b=waste_pin_b
         )
 
         print("Pumps initialized.")
 
-    def run_water_for(self, duration_ms):
-        self.water.run_for(duration_ms)
+    def run_cooler_for(self, duration_ms):
+        self.cooler.run_for(duration_ms)
 
-    def run_spray_for(self, duration_ms):
-        self.spray.run_for(duration_ms)
+    def run_waste_for(self, duration_ms):
+        self.waste.run_for(duration_ms)
 
-    def water_on(self):
-        self.water.on()
+    def cooler_on(self):
+        self.cooler.on()
 
-    def water_off(self):
-        self.water.off()
+    def cooler_off(self):
+        self.cooler.off()
 
-    def spray_on(self):
-        self.spray.on()
+    def waste_on(self):
+        self.waste.on()
 
-    def spray_off(self):
-        self.spray.off()
+    def waste_off(self):
+        self.waste.off()
 
-    def water_running(self):
-        return self.water.running
+    def cooler_running(self):
+        return self.cooler.running
 
-    def spray_running(self):
-        return self.spray.running
+    def waste_running(self):
+        return self.waste.running
 
     def update(self):
-        self.water.update()
-        self.spray.update()
+        self.cooler.update()
+        self.waste.update()
