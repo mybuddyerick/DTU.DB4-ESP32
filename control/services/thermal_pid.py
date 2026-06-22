@@ -24,8 +24,8 @@ class Thermal_PID:
     - At or below target, cooling turns OFF.
     """
 
-    DEFAULT_TARGET_TEMP_C = 17.0
-    DEFAULT_HYSTERESIS_C = 0.50
+    DEFAULT_TARGET_TEMP_C = 13.0
+    DEFAULT_HYSTERESIS_C = 0.75
 
     _default = None
 
@@ -76,7 +76,7 @@ class Thermal_PID:
         self.last_error_msg = None
 
         self.off()
-        peltier.off()
+        print("[thermal_pid] initialized target=", self.target_temp_c, "hysteresis=", self.hysteresis_c, "kp=", self.kp, "ki=", self.ki, "kd=", self.kd)
 
     @classmethod
     def default(cls):
@@ -100,6 +100,7 @@ class Thermal_PID:
     def set_target(self, target_temp_c):
         self.target_temp_c = float(target_temp_c)
         self.reset_pid()
+        print("[thermal_pid] target changed to:", self.target_temp_c)
         return self.target_temp_c
 
     def set_pid(self, kp=None, ki=None, kd=None):
@@ -117,10 +118,12 @@ class Thermal_PID:
     def enable(self):
         self.enabled = True
         self.reset_pid()
+        print("[thermal_pid] enabled")
 
     def disable(self):
         self.enabled = False
         self.off()
+        print("[thermal_pid] disabled")
 
     def reset_pid(self):
         self.integral = 0.0
@@ -187,6 +190,7 @@ class Thermal_PID:
             self.last_error_msg = None
 
             output = self.compute_output(temp_c)
+            print("[thermal_pid] temp_c=", temp_c, "target=", self.target_temp_c, "output_percent=", output, "cooling=", self.cooling)
 
             if self._should_cool(temp_c, output):
                 self._cooling_on()
@@ -223,6 +227,7 @@ class Thermal_PID:
         if self.cooling:
             return
 
+        print("[thermal_pid] cooling ON")
         self.cooler_pump.on()
         self.peltier.on()
         self.cooling = True
@@ -231,6 +236,7 @@ class Thermal_PID:
         if not self.cooling and not force:
             return
 
+        print("[thermal_pid] cooling OFF")
         self.peltier.off()
         self.cooler_pump.off()
         self.cooling = False
