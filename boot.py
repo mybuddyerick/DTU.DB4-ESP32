@@ -1,6 +1,6 @@
 import network
 import time
-
+import webrepl
 
 AP_NAME = "group-13-ESP32"
 AP_PASSWORD = "group13dtu"
@@ -38,5 +38,11 @@ def setup_access_point():
     print("Network config:", ap_if.ifconfig())
     print()
 
+    # Start WebREPL to allow Python REPL access over Wi-Fi
+    try:
+        webrepl.start()
+        print("WebREPL started. Connect at http://micropython.org/webrepl/")
+    except Exception as e:
+        print("WebREPL failed to start:", e)
 
 setup_access_point()
