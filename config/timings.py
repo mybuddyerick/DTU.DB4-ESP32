@@ -2,6 +2,7 @@ TIMINGS = {
     "step": 100,
 
     "oled debug": 1000,
+    "ws upd": 300,
 
     "rgb log": 500,
     "temperature log": 500,
