@@ -18,7 +18,7 @@ GDATA = 0x18
 BDATA = 0x1A
 
 
-class TCS34725:
+class RGBSensor:
     def __init__(self, sda_pin=21, scl_pin=22, freq=50000, led_pin=None, led_active_high=True):
         self.sda_pin = sda_pin
         self.scl_pin = scl_pin

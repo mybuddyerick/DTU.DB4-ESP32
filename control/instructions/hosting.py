@@ -31,7 +31,6 @@ MIME_TYPES = {
 BLOCKED_ROOT_FILES = {
     "boot.py",
     "main.py",
-    "pymakr.conf",
     ".DS_Store",
 }
 
