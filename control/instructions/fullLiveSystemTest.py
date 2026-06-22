@@ -18,7 +18,7 @@ if "/site" not in sys.path:
     sys.path.append("/site")
 
 from live_dashboard import LiveDashboard
-from control.helpers.websocket_server import WebSocketServer
+from control.helpers.web_sockets import WebSocketServer
 
 OLED_UPDATE_MS = 1000
 TERMINAL_UPDATE_MS = 1000
