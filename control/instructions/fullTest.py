@@ -2,37 +2,38 @@ from config.pins import PINS
 from config.timings import TIMINGS
 
 from control.helpers.oled_display import OLED
-from control.drivers.relay import Relay
 from control.helpers.scheduler import Scheduler
+
 from control.services.websocket_server import WebSocketServer
+from control.services.thermal_pid import Thermal_PID
 
 
 oled = None
-peltier = None
-laser_relay = None
 scheduler = None
+
+thermal_pid = None
 
 
 def startup():
-    global oled, peltier, laser_relay, scheduler
+    global oled, scheduler
+    global thermal_pid
 
     print("starting...")
 
     oled = OLED(PINS["oled"]["sda"], PINS["oled"]["scl"], PINS["oled"]["addr"])
-    peltier = Relay("peltier", PINS["peltier"]["relay"])
-    laser_relay = Relay("laser module", PINS["laser"]["relay"])
+
+    thermal_pid = Thermal_PID()
 
     oled.set_status("Found Devices")
-    peltier.off()
 
     scheduler = Scheduler(step_interval_ms=TIMINGS["step"])
-    '''
+
     scheduler.every(
         name="thermal loop",
         interval_ms=TIMINGS["thermal pid upd"],
-        runnable=pass
+        runnable=thermal_pid.update
     )
-
+    '''
     scheduler.every(
         name="waste loop",
         interval_ms=TIMINGS["feed upd"],
@@ -45,7 +46,7 @@ def startup():
     scheduler.every(
         name="ws upd",
         interval_ms=TIMINGS["ws upd"],
-        runnable=ws_server.update()
+        runnable=ws_server.update
     )
 
     scheduler.every(
