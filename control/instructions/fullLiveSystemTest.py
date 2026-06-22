@@ -56,29 +56,29 @@ def _safe_get_latest(obj):
 
 
 def _cooler_running(pumps):
-    # Cooler pump = 5V pump = old "water" pump in PumpsControl
-    return pumps.water_running()
+    # Cooler pump = 5V pump
+    return pumps.cooler_running()
 
 
 def _waste_running(pumps):
-    # Waste pump = 12V pump = old "spray" pump in PumpsControl
-    return pumps.spray_running()
+    # Waste pump = 12V pump
+    return pumps.waste_running()
 
 
 def _cooler_on(pumps):
-    pumps.water_on()
+    pumps.cooler_on()
 
 
 def _waste_on(pumps):
-    pumps.spray_on()
+    pumps.waste_on()
 
 
 def _cooler_off(pumps):
-    pumps.water_off()
+    pumps.cooler_off()
 
 
 def _waste_off(pumps):
-    pumps.spray_off()
+    pumps.waste_off()
 
 
 def _button_pressed(button):
@@ -249,10 +249,10 @@ def startup():
         )
 
         pumps = PumpsControl(
-            water_pin_a=PINS["water_pump"]["1"],
-            water_pin_b=PINS["water_pump"]["2"],
-            spray_pin_a=PINS["waste_pump"]["1"],
-            spray_pin_b=PINS["waste_pump"]["2"]
+            cooler_pin_a=PINS["cooler_pump"]["1"],
+            cooler_pin_b=PINS["cooler_pump"]["2"],
+            waste_pin_a=PINS["waste_pump"]["1"],
+            waste_pin_b=PINS["waste_pump"]["2"]
         )
 
         peltier = PeltierControl(
@@ -322,15 +322,10 @@ def startup():
                 },
 
                 "outputs": {
-                    # New names
                     "cooler_pump": cooler_state,
                     "waste_pump": waste_state,
                     "peltier": peltier_state,
-                    "laser_relay": laser_state["on"],
-
-                    # Backwards-compatible names for current dashboard JS
-                    "water_pump": cooler_state,
-                    "spray_pump": waste_state
+                    "laser_relay": laser_state["on"]
                 }
             }
 
