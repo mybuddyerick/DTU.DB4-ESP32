@@ -3,6 +3,7 @@ from config.timings import TIMINGS
 
 from control.helpers.oled_display import OLED
 from control.helpers.scheduler import Scheduler
+from control.services.feeding import Feeding
 
 from control.services.websocket_server import WebSocketServer
 from control.services.thermal_pid import Thermal_PID
@@ -12,17 +13,19 @@ oled = None
 scheduler = None
 
 thermal_pid = None
+feeding = None
 
 
 def startup():
     global oled, scheduler
-    global thermal_pid
+    global thermal_pid, feeding
 
     print("starting...")
 
     oled = OLED(PINS["oled"]["sda"], PINS["oled"]["scl"], PINS["oled"]["addr"])
 
     thermal_pid = Thermal_PID()
+    feeding = Feeding()
 
     oled.set_status("Found Devices")
 
@@ -33,13 +36,13 @@ def startup():
         interval_ms=TIMINGS["thermal pid upd"],
         runnable=thermal_pid.update
     )
-    '''
+
     scheduler.every(
         name="waste loop",
         interval_ms=TIMINGS["feed upd"],
-        runnable=update_waste_loop
+        runnable=feeding.update
     )
-    '''
+
     ws_server = WebSocketServer(port=81)
     ws_server.start()
 
