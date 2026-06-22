@@ -52,7 +52,7 @@ def startup():
     scheduler.every(
         name="ws broadcast",
         interval_ms=TIMINGS["ws broadcast"],
-        runnable=ws_server.broadcast(get_status())
+        runnable=lambda: ws_server.broadcast(get_status())
     )
 
     while True:
