@@ -18,16 +18,16 @@ PINS = {
         "addr": 0x3C,
     },
 
-    # 5V cooler pump using L9110S
+    # 12V pump using L298
     "cooler_pump": {
-        "1": 18,
-        "2": 19,
-    },
-
-    # 12V waste pump using L298
-    "waste_pump": {
         "1": 25,
         "2": 26,
+    },
+
+    # You can power the motor side at 3.3V if the pump starts reliably.
+    "waste_pump": {
+        "1": 18,
+        "2": 19,
     },
 
     # Peltier relay module
