@@ -10,6 +10,10 @@ from control.services.websocket_server import WebSocketServer
 from control.services.thermal_pid import Thermal_PID
 
 import time
+try:
+    import ujson as json
+except ImportError:
+    import json
 
 
 oled = None
@@ -64,6 +68,13 @@ def startup():
     scheduler.disable_task(name="waste loop")
     scheduler.disable_task(name="ws upd")
     scheduler.disable_task(name="ws broadcast")
+
+    scheduler.every(
+        name="usb broadcast",
+        interval_ms=1000,
+        runnable=lambda: print("USB_DATA:" + json.dumps(get_status()))
+    )
+
     while True:
         step()
         step_wait()
