@@ -50,6 +50,13 @@ def startup():
         runnable=feeding.update
     )
 
+    scheduler.every(
+        name="oled upd",
+        interval_ms=TIMINGS["oled debug"],
+        runnable=update_oled,
+        run_immediately=True
+    )
+
     ws_server = WebSocketServer(port=81)
     ws_server.start()
 
@@ -68,6 +75,7 @@ def startup():
     scheduler.disable_task(name="waste loop")
     scheduler.disable_task(name="ws upd")
     scheduler.disable_task(name="ws broadcast")
+    scheduler.disable_task(name="usb broadcast")
 
     scheduler.every(
         name="usb broadcast",
@@ -88,6 +96,56 @@ def step():
 def step_wait():
     scheduler.wait()
 
+
+def _on_off(value):
+    return "ON" if value else "OFF"
+
+
+def _rgb_sensor_on():
+    if feeding is None or feeding.light_sensor is None:
+        return False
+
+
+    try:
+        return feeding.light_sensor.found()
+    except Exception as exc:
+        print("[oled] rgb status error:", exc)
+        return False
+
+
+def update_oled():
+    if oled is None:
+        return
+
+    temp_c = None
+    cooler_running = False
+    waste_running = False
+
+    if thermal_pid is not None:
+        temp_c = thermal_pid.current_temp_c
+        cooler_running = thermal_pid.cooler_pump.running
+
+    if feeding is not None:
+        waste_running = feeding.waste_pump.running
+
+    if temp_c is None:
+        temp_line = "Temp: --.- C"
+    else:
+        temp_line = "Temp: {:.1f} C".format(temp_c)
+
+    pump_line = "C:{} W:{}".format(
+        _on_off(cooler_running),
+        _on_off(waste_running)
+    )
+
+    rgb_line = "RGB: {}".format(_on_off(_rgb_sensor_on()))
+
+    oled.update_message(
+        "DB4 Status",
+        temp_line,
+        pump_line,
+        rgb_line
+    )
 
 def get_status():
     #rgb_values = _safe_get_latest(rgb_sensor)
