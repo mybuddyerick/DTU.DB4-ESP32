@@ -3,17 +3,23 @@ from control.drivers.pump import Pump
 from control.drivers.relay import Relay
 from control.drivers.rgb_sensor import RGBSensor
 
+import time
+import _thread
+
 
 class Feeding:
 
-    DEFAULT_TARGET_Density = 7000
+    DEFAULT_TARGET_DENSITY = 7000
+    LASER_WAIT_MS = 200
+    DENSITY_DROP_PER_SECOND = 2000
+    MAX_PUMP_MS = 10000
 
     def __init__(
             self,
-            target_density = DEFAULT_TARGET_Density,
-            laser_relay = None,
-            light_sensor = None,
-            waste_pump = None
+            target_density=DEFAULT_TARGET_DENSITY,
+            laser_relay=None,
+            light_sensor=None,
+            waste_pump=None
         ):
 
         self.target_density = float(target_density)
@@ -37,16 +43,19 @@ class Feeding:
 
         self.enabled = True
         self.feeding = False
+        self.busy = False
 
         self.current_density = None
         self.output_percent = 0.0
+        self.pump_ms = 0
+
+        self._lock = _thread.allocate_lock()
 
         self.off()
 
-    def set_target(self, target_temp_c):
-        self.target_density = float(target_temp_c)
+    def set_target(self, target_density):
+        self.target_density = float(target_density)
         print("[feeding] target changed to:", self.target_density)
-        return self.target_density
 
     def enable(self):
         self.enabled = True
@@ -58,60 +67,87 @@ class Feeding:
         print("[feeding] disabled")
 
     def read_density(self):
-        # Activate laser
-        # Wait shortly
-        density = self.light_sensor.read_raw()["green"]
-        # Laser off
-        if density is None:
+        self.laser_relay.on()
+        time.sleep_ms(self.LASER_WAIT_MS)
+
+        light_reading = self.light_sensor.read_raw()["green"]
+
+        self.laser_relay.off()
+
+        if light_reading is None:
             raise ValueError("OD sensor returned None")
 
+        density = self.light_to_density(light_reading)
+        density = 5000  # Temporary test value
         return float(density)
 
-    def compute_output(self):
-        # TODO: determine if/how long pump should pump
-        return 0
+    def light_to_density(self, light_reading):
+        # TODO: Eventually use calibration
+        return light_reading
+
+    def compute_output(self, density):
+        error = density - self.target_density
+
+        if error <= 0:
+            return 0
+
+        pump_ms = int((error / self.DENSITY_DROP_PER_SECOND) * 1000)
+
+        if pump_ms > self.MAX_PUMP_MS:
+            pump_ms = self.MAX_PUMP_MS
+
+        return pump_ms
 
     def step(self):
         if not self.enabled:
             self.off()
-            return self.get_status()
+            return
 
+        with self._lock:
+            if self.busy:
+                return
+            self.busy = True
+
+        _thread.start_new_thread(self._feeding_cycle, ())
+
+    def _feeding_cycle(self):
         try:
-            # TODO: New thread for waiting
             density = self.read_density()
+            pump_ms = self.compute_output(density)
+
             self.current_density = density
+            self.pump_ms = pump_ms
+            self.output_percent = pump_ms
 
-            output = self.compute_output()
-            print("[feeding] density=", density, "target=", self.target_density, "output_percent=", output, "feeding=", self.feeding)
+            print(
+                "[feeding] density=",
+                density,
+                "target=",
+                self.target_density,
+                "pump_ms=",
+                pump_ms
+            )
 
-            if self._should_pump(density, output):
+            if pump_ms > 0 and self.enabled:
                 self._pump_on()
-            else:
+                time.sleep_ms(pump_ms)
                 self._pump_off()
 
         except Exception as exc:
-            print("thermal pid error:", exc)
+            print("[feeding] error:", exc)
             self.off()
 
-        return self.get_status()
+        finally:
+            with self._lock:
+                self.busy = False
 
-    def update(self=None):
-        if self is None:
-            return Feeding.default().step
-        return self.step()
+    def update(self):
+        self.step()
 
     def off(self):
         self._pump_off(force=True)
         self.output_percent = 0.0
-
-    def _should_pump(self, temp_c, output_percent):
-        if output_percent <= 0:
-            return False
-
-        if self.feeding:
-            return temp_c > self.target_temp_c
-
-        return temp_c > (self.target_temp_c + self.hysteresis_c)
+        self.pump_ms = 0
 
     def _pump_on(self):
         if self.feeding:
@@ -136,9 +172,10 @@ class Feeding:
 
         return {
             "enabled": self.enabled,
+            "busy": self.busy,
             "target_density": self.target_density,
-            "current_desity": self.current_density,
+            "current_density": self.current_density,
             "error": error,
-            "output_percent": self.output_percent,
+            "pump_ms": self.pump_ms,
             "feeding": self.feeding,
         }

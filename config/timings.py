@@ -10,5 +10,5 @@ TIMINGS = {
 
     "thermal pid upd": 2000,
 
-    "feed upd": 1000,
+    "feed upd": 1000000,
 }
