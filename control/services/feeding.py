@@ -11,7 +11,7 @@ class Feeding:
 
     DEFAULT_TARGET_DENSITY = 7000
     LASER_WAIT_MS = 200
-    DENSITY_DROP_PER_SECOND = 2000
+    DENSITY_DROP_PER_SECOND = 200
     MAX_PUMP_MS = 10000
 
     def __init__(
