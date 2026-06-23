@@ -16,6 +16,8 @@ except ImportError:
     import json
 
 
+CSV_FILE = "/areebData.csv"
+
 oled = None
 scheduler = None
 
@@ -33,6 +35,8 @@ def startup():
 
     thermal_pid = Thermal_PID()
     feeding = Feeding()
+
+    init_csv()
 
     oled.set_status("Found Devices")
 
@@ -57,6 +61,13 @@ def startup():
         run_immediately=True
     )
 
+    scheduler.every(
+        name="csv log",
+        interval_ms=10000,
+        runnable=add_to_csv,
+        run_immediately=True
+    )
+
     ws_server = WebSocketServer(port=81)
     ws_server.start()
 
@@ -71,6 +82,7 @@ def startup():
         interval_ms=TIMINGS["ws broadcast"],
         runnable=lambda: ws_server.broadcast(get_status())
     )
+
     #scheduler.disable_task(name="thermal loop")
     scheduler.disable_task(name="waste loop")
     scheduler.disable_task(name="ws upd")
@@ -101,10 +113,87 @@ def _on_off(value):
     return "ON" if value else "OFF"
 
 
+def _csv_value(value):
+    if value is None:
+        return ""
+
+    if isinstance(value, float):
+        return "{:.2f}".format(value)
+
+    return str(value)
+
+
+def init_csv():
+    try:
+        with open(CSV_FILE, "w") as file:
+            file.write(
+                "uptime_ms,"
+                "temperature_c,"
+                "target_temp_c,"
+                "output_percent,"
+                "cooling,"
+                "cooling_phase,"
+                "cooler_pump,"
+                "waste_pump,"
+                "rgb_sensor\n"
+            )
+
+        print("[csv] created", CSV_FILE)
+
+    except Exception as exc:
+        print("[csv] init error:", exc)
+
+
+def add_to_csv():
+    try:
+        uptime_ms = time.ticks_ms()
+
+        temperature_c = None
+        target_temp_c = None
+        output_percent = None
+        cooling = False
+        cooling_phase = "off"
+        cooler_pump_running = False
+        waste_pump_running = False
+        rgb_sensor_on = _rgb_sensor_on()
+
+        if thermal_pid is not None:
+            temperature_c = thermal_pid.current_temp_c
+            target_temp_c = thermal_pid.target_temp_c
+            output_percent = thermal_pid.output_percent
+            cooling = thermal_pid.cooling
+            cooler_pump_running = thermal_pid.cooler_pump.running
+
+            if hasattr(thermal_pid, "cooling_phase"):
+                cooling_phase = thermal_pid.cooling_phase
+
+        if feeding is not None:
+            waste_pump_running = feeding.waste_pump.running
+
+        row = [
+            uptime_ms,
+            temperature_c,
+            target_temp_c,
+            output_percent,
+            _on_off(cooling),
+            cooling_phase,
+            _on_off(cooler_pump_running),
+            _on_off(waste_pump_running),
+            _on_off(rgb_sensor_on),
+        ]
+
+        with open(CSV_FILE, "a") as file:
+            file.write(",".join(_csv_value(value) for value in row) + "\n")
+
+        print("[csv] wrote row to", CSV_FILE)
+
+    except Exception as exc:
+        print("[csv] write error:", exc)
+
+
 def _rgb_sensor_on():
     if feeding is None or feeding.light_sensor is None:
         return False
-
 
     try:
         return feeding.light_sensor.found()
