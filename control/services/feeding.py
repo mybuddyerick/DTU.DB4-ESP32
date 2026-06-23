@@ -26,7 +26,7 @@ class Feeding:
         self.light_sensor = light_sensor or RGBSensor(
             PINS["rgb"]["sda"],
             PINS["rgb"]["scl"],
-            led_pin=PINS["laser"]["led"]
+            led_pin=PINS["rgb"]["led"]
         )
 
         self.waste_pump = waste_pump or Pump(
@@ -108,13 +108,13 @@ class Feeding:
         if output_percent <= 0:
             return False
 
-        if self.cooling:
+        if self.feeding:
             return temp_c > self.target_temp_c
 
         return temp_c > (self.target_temp_c + self.hysteresis_c)
 
     def _pump_on(self):
-        if self.cooling:
+        if self.feeding:
             return
 
         print("[feeding] pump ON")
@@ -122,7 +122,7 @@ class Feeding:
         self.feeding = True
 
     def _pump_off(self, force=False):
-        if not self.cooling and not force:
+        if not self.feeding and not force:
             return
 
         print("[feeding] pump OFF")
