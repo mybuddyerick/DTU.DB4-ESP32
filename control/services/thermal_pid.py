@@ -24,7 +24,7 @@ class Thermal_PID:
     - At or below target, cooling turns OFF.
     """
 
-    DEFAULT_TARGET_TEMP_C = 2.0
+    DEFAULT_TARGET_TEMP_C = 17.0
     DEFAULT_HYSTERESIS_C = 0.75
 
     MIN_COOLING_OUTPUT_PERCENT = 20.0
