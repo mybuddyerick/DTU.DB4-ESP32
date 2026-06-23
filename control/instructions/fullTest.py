@@ -3,6 +3,7 @@ from config.timings import TIMINGS
 
 from control.helpers.oled_display import OLED
 from control.helpers.scheduler import Scheduler
+from control.helpers.system_state import SYSTEM_STATE
 from control.services.feeding import Feeding
 
 from control.services.websocket_server import WebSocketServer
@@ -59,7 +60,10 @@ def startup():
         interval_ms=TIMINGS["ws broadcast"],
         runnable=lambda: ws_server.broadcast(get_status())
     )
-
+    #scheduler.disable_task(name="thermal loop")
+    scheduler.disable_task(name="waste loop")
+    scheduler.disable_task(name="ws upd")
+    scheduler.disable_task(name="ws broadcast")
     while True:
         step()
         step_wait()
