@@ -20,12 +20,16 @@ from control.drivers.thermistor import Thermistor
 class Thermal_PID:
     """
     - If temperature rises above target + hysteresis, cooling turns ON.
-    - While cooling, cooling stays ON until temperature reaches target.
+    - Peltier stays ON while cooling is needed.
     - At or below target, cooling turns OFF.
     """
 
-    DEFAULT_TARGET_TEMP_C = 13.0
+    DEFAULT_TARGET_TEMP_C = 2.0
     DEFAULT_HYSTERESIS_C = 0.75
+
+    MIN_COOLING_OUTPUT_PERCENT = 20.0
+    PELTIER_PRECOOL_MS = 15000
+    PUMP_RUN_MS = 25000
 
     _default = None
 
@@ -74,6 +78,10 @@ class Thermal_PID:
         self.current_temp_c = None
         self.output_percent = 0.0
         self.last_error_msg = None
+
+        self.cooling_phase = "off"
+        self.phase_start_ms = None
+        self.cooler_pump_running = False
 
         self.off()
         print("[thermal_pid] initialized target=", self.target_temp_c, "hysteresis=", self.hysteresis_c, "kp=", self.kp, "ki=", self.ki, "kd=", self.kd)
@@ -215,22 +223,51 @@ class Thermal_PID:
         self.reset_pid()
 
     def _should_cool(self, temp_c, output_percent):
-        if output_percent <= 0:
-            return False
-
         if self.cooling:
             return temp_c > self.target_temp_c
+
+        if output_percent < self.MIN_COOLING_OUTPUT_PERCENT:
+            return False
 
         return temp_c > (self.target_temp_c + self.hysteresis_c)
 
     def _cooling_on(self):
-        if self.cooling:
+        now_ms = ticks_ms()
+
+        if not self.cooling:
+            print("[thermal_pid] cooling ON")
+            print("[thermal_pid] phase=precool, peltier ON, pump OFF")
+            self.peltier.on()
+            self.cooler_pump.off()
+            self.cooling = True
+            self.cooling_phase = "precool"
+            self.phase_start_ms = now_ms
+            self.cooler_pump_running = False
             return
 
-        print("[thermal_pid] cooling ON")
-        self.cooler_pump.on()
-        self.peltier.on()
-        self.cooling = True
+        elapsed_ms = ticks_diff(now_ms, self.phase_start_ms)
+
+        if self.cooling_phase == "precool":
+            if elapsed_ms >= self.PELTIER_PRECOOL_MS:
+                print("[thermal_pid] phase=pump_run, pump ON for 1 minute")
+                self.cooler_pump.on()
+                self.cooler_pump_running = True
+                self.cooling_phase = "pump_run"
+                self.phase_start_ms = now_ms
+            else:
+                remaining_ms = self.PELTIER_PRECOOL_MS - elapsed_ms
+                print("[thermal_pid] precooling, pump starts in ms=", remaining_ms)
+
+        elif self.cooling_phase == "pump_run":
+            if elapsed_ms >= self.PUMP_RUN_MS:
+                print("[thermal_pid] phase=precool, pump OFF, peltier keeps cooling")
+                self.cooler_pump.off()
+                self.cooler_pump_running = False
+                self.cooling_phase = "precool"
+                self.phase_start_ms = now_ms
+            else:
+                remaining_ms = self.PUMP_RUN_MS - elapsed_ms
+                print("[thermal_pid] pump running, pump stops in ms=", remaining_ms)
 
     def _cooling_off(self, force=False):
         if not self.cooling and not force:
@@ -240,6 +277,9 @@ class Thermal_PID:
         self.peltier.off()
         self.cooler_pump.off()
         self.cooling = False
+        self.cooling_phase = "off"
+        self.phase_start_ms = None
+        self.cooler_pump_running = False
 
     def get_status(self):
         error_c = None
@@ -254,5 +294,8 @@ class Thermal_PID:
             "error_c": error_c,
             "output_percent": self.output_percent,
             "cooling": self.cooling,
+            "cooling_phase": self.cooling_phase,
+            "cooler_pump_running": self.cooler_pump_running,
+            "phase_start_ms": self.phase_start_ms,
             "last_error_msg": self.last_error_msg,
         }
