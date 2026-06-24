@@ -58,7 +58,9 @@ class DataLogger:
                 "peltier,"
                 "cooler_pump,"
                 "waste_pump,"
-                "rgb_sensor\n"
+                "rgb_sensor,"
+                "od_green_raw,"
+                "od_density\n"
             )
 
         return file_path
@@ -84,6 +86,16 @@ class DataLogger:
         except Exception as exc:
             print("[data_logger] rgb status error:", exc)
             return False
+
+    def _od_green(self):
+        if self.feeding is None or not hasattr(self.feeding, "last_green"):
+            return None
+        return self.feeding.last_green
+
+    def _od_density(self):
+        if self.feeding is None or not hasattr(self.feeding, "current_density"):
+            return None
+        return self.feeding.current_density
 
     def _cooler_pump_on(self):
         if self.thermal_pid is None:
@@ -147,6 +159,8 @@ class DataLogger:
                 self._on_off(self._cooler_pump_on()),
                 self._on_off(self._waste_pump_on()),
                 self._on_off(self._rgb_sensor_on()),
+                self._od_green(),
+                self._od_density(),
             ]
 
             with open(self.file_path, "a") as file:
