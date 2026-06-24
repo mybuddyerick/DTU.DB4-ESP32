@@ -49,6 +49,7 @@ class Feeding:
         self.current_density = None
         self.output_percent = 0.0
         self.pump_ms = 0
+        self.last_green = 255
 
         self._lock = _thread.allocate_lock()
 
@@ -79,6 +80,7 @@ class Feeding:
             raise ValueError("OD sensor returned None (Sensor not ready)")
 
         light_reading = raw_reading["green"]
+        self.last_green = light_reading
 
         print("[feeding] reading green:", light_reading)
 

@@ -93,11 +93,11 @@ def startup():
     )
 
     #scheduler.disable_task(name="waste loop")
-    scheduler.disable_task(name="usb broadcast")
-    scheduler.disable_task(name="thermal loop")
+    #scheduler.disable_task(name="usb broadcast")
+    #scheduler.disable_task(name="thermal loop")
     scheduler.disable_task(name="ws upd")
     scheduler.disable_task(name="ws broadcast")
-    scheduler.disable_task(name="csv log")
+    #scheduler.disable_task(name="csv log")
 
     while True:
         step()
@@ -174,4 +174,16 @@ def update_oled():
 
 def get_status():
     SYSTEM_STATE["uptime_ms"] = time.ticks_ms()
+
+    if thermal_pid is not None:
+        if thermal_pid.current_temp_c is not None:
+            SYSTEM_STATE["temperature"]["temp_c"] = thermal_pid.current_temp_c
+        SYSTEM_STATE["outputs"]["water_pump"] = getattr(thermal_pid.cooler_pump, "running", False)
+        SYSTEM_STATE["outputs"]["peltier"] = thermal_pid.cooling
+
+    if feeding is not None:
+        SYSTEM_STATE["outputs"]["spray_pump"] = getattr(feeding.waste_pump, "running", False)
+        if hasattr(feeding, "last_green"):
+            SYSTEM_STATE["rgb"]["green"] = feeding.last_green
+
     return SYSTEM_STATE
