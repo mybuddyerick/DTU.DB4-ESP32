@@ -203,38 +203,46 @@ def _rgb_sensor_on():
 
 
 def update_oled():
-    if oled is None:
-        return
+    try:
+        if oled is None:
+            return
 
-    temp_c = None
-    cooler_running = False
-    waste_running = False
+        temp_c = None
+        cooler_running = False
+        waste_running = False
 
-    if thermal_pid is not None:
-        temp_c = thermal_pid.current_temp_c
-        cooler_running = thermal_pid.cooler_pump.running
+        if thermal_pid is not None:
+            temp_c = thermal_pid.current_temp_c
 
-    if feeding is not None:
-        waste_running = feeding.waste_pump.running
+            if hasattr(thermal_pid.cooler_pump, "running"):
+                cooler_running = thermal_pid.cooler_pump.running
 
-    if temp_c is None:
-        temp_line = "Temp: --.- C"
-    else:
-        temp_line = "Temp: {:.1f} C".format(temp_c)
+        if feeding is not None:
+            if hasattr(feeding.waste_pump, "running"):
+                waste_running = feeding.waste_pump.running
 
-    pump_line = "C:{} W:{}".format(
-        _on_off(cooler_running),
-        _on_off(waste_running)
-    )
+        if temp_c is None:
+            temp_line = "Temp: --.- C"
+        else:
+            temp_line = "Temp: {:.1f} C".format(temp_c)
 
-    rgb_line = "RGB: {}".format(_on_off(_rgb_sensor_on()))
+        pump_line = "C:{} W:{}".format(
+            _on_off(cooler_running),
+            _on_off(waste_running)
+        )
 
-    oled.update_message(
-        "DB4 Status",
-        temp_line,
-        pump_line,
-        rgb_line
-    )
+        peltier_line = "Peltier: {}".format(_on_off(_peltier_on()))
+
+        oled.update_message(
+            "DB4 Status",
+            temp_line,
+            pump_line,
+            peltier_line
+        )
+
+    except Exception as exc:
+        print("[oled] update error:", exc)
+
 
 def get_status():
     #rgb_values = _safe_get_latest(rgb_sensor)
