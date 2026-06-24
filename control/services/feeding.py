@@ -88,8 +88,20 @@ class Feeding:
         return float(density)
 
     def light_to_density(self, light_reading):
-        # TODO: Eventually use calibration
-        return light_reading
+        import math
+        I_0 = 277.56  # Baseline clear-water reading
+        
+        if light_reading <= 0:
+            return 0.0
+            
+        try:
+            # Beer-Lambert Law: OD = -log10(I / I_0)
+            ratio = I_0 / light_reading
+            if ratio < 1.0:
+                ratio = 1.0  # Prevent negative OD
+            return math.log10(ratio)
+        except Exception:
+            return 0.0
 
     def compute_output(self, density):
         error = density - self.target_density
