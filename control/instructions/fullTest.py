@@ -185,5 +185,7 @@ def get_status():
         SYSTEM_STATE["outputs"]["spray_pump"] = getattr(feeding.waste_pump, "running", False)
         if hasattr(feeding, "last_green"):
             SYSTEM_STATE["rgb"]["green"] = feeding.last_green
+        if hasattr(feeding, "current_density") and feeding.current_density is not None:
+            SYSTEM_STATE["rgb"]["od"] = feeding.current_density
 
     return SYSTEM_STATE
