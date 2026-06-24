@@ -85,7 +85,6 @@ class Feeding:
         print("[feeding] reading green:", light_reading)
 
         density = self.light_to_density(light_reading)
-        density = 5000  # Temporary test value
         return float(density)
 
     def light_to_density(self, light_reading):
