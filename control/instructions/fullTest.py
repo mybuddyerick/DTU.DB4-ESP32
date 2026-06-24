@@ -5,29 +5,29 @@ from control.helpers.oled_display import OLED
 from control.helpers.scheduler import Scheduler
 from control.helpers.system_state import SYSTEM_STATE
 from control.services.feeding import Feeding
-
 from control.services.websocket_server import WebSocketServer
 from control.services.thermal_pid import Thermal_PID
+from control.services.data_logger import DataLogger
 
 import time
+
 try:
     import ujson as json
 except ImportError:
     import json
 
 
-CSV_FILE = "/areebData.csv"
-
 oled = None
 scheduler = None
 
 thermal_pid = None
 feeding = None
+data_logger = None
 
 
 def startup():
     global oled, scheduler
-    global thermal_pid, feeding
+    global thermal_pid, feeding, data_logger
 
     print("starting...")
 
@@ -36,7 +36,10 @@ def startup():
     thermal_pid = Thermal_PID()
     feeding = Feeding()
 
-    init_csv()
+    data_logger = DataLogger(
+        thermal_pid=thermal_pid,
+        feeding=feeding
+    )
 
     oled.set_status("Found Devices")
 
@@ -64,7 +67,7 @@ def startup():
     scheduler.every(
         name="csv log",
         interval_ms=10000,
-        runnable=add_to_csv,
+        runnable=data_logger.write,
         run_immediately=True
     )
 
@@ -83,17 +86,18 @@ def startup():
         runnable=lambda: ws_server.broadcast(get_status())
     )
 
-    #scheduler.disable_task(name="thermal loop")
-    scheduler.disable_task(name="waste loop")
-    scheduler.disable_task(name="ws upd")
-    scheduler.disable_task(name="ws broadcast")
-    scheduler.disable_task(name="usb broadcast")
-
     scheduler.every(
         name="usb broadcast",
         interval_ms=1000,
         runnable=lambda: print("USB_DATA:" + json.dumps(get_status()))
     )
+
+    #scheduler.disable_task(name="waste loop")
+    scheduler.disable_task(name="usb broadcast")
+    scheduler.disable_task(name="thermal loop")
+    scheduler.disable_task(name="ws upd")
+    scheduler.disable_task(name="ws broadcast")
+    scheduler.disable_task(name="csv log")
 
     while True:
         step()
@@ -113,92 +117,16 @@ def _on_off(value):
     return "ON" if value else "OFF"
 
 
-def _csv_value(value):
-    if value is None:
-        return ""
-
-    if isinstance(value, float):
-        return "{:.2f}".format(value)
-
-    return str(value)
-
-
-def init_csv():
-    try:
-        with open(CSV_FILE, "w") as file:
-            file.write(
-                "uptime_ms,"
-                "temperature_c,"
-                "target_temp_c,"
-                "output_percent,"
-                "cooling,"
-                "cooling_phase,"
-                "cooler_pump,"
-                "waste_pump,"
-                "rgb_sensor\n"
-            )
-
-        print("[csv] created", CSV_FILE)
-
-    except Exception as exc:
-        print("[csv] init error:", exc)
-
-
-def add_to_csv():
-    try:
-        uptime_ms = time.ticks_ms()
-
-        temperature_c = None
-        target_temp_c = None
-        output_percent = None
-        cooling = False
-        cooling_phase = "off"
-        cooler_pump_running = False
-        waste_pump_running = False
-        rgb_sensor_on = _rgb_sensor_on()
-
-        if thermal_pid is not None:
-            temperature_c = thermal_pid.current_temp_c
-            target_temp_c = thermal_pid.target_temp_c
-            output_percent = thermal_pid.output_percent
-            cooling = thermal_pid.cooling
-            cooler_pump_running = thermal_pid.cooler_pump.running
-
-            if hasattr(thermal_pid, "cooling_phase"):
-                cooling_phase = thermal_pid.cooling_phase
-
-        if feeding is not None:
-            waste_pump_running = feeding.waste_pump.running
-
-        row = [
-            uptime_ms,
-            temperature_c,
-            target_temp_c,
-            output_percent,
-            _on_off(cooling),
-            cooling_phase,
-            _on_off(cooler_pump_running),
-            _on_off(waste_pump_running),
-            _on_off(rgb_sensor_on),
-        ]
-
-        with open(CSV_FILE, "a") as file:
-            file.write(",".join(_csv_value(value) for value in row) + "\n")
-
-        print("[csv] wrote row to", CSV_FILE)
-
-    except Exception as exc:
-        print("[csv] write error:", exc)
-
-
-def _rgb_sensor_on():
-    if feeding is None or feeding.light_sensor is None:
+def _peltier_on():
+    if thermal_pid is None:
         return False
 
     try:
-        return feeding.light_sensor.found()
+        # In your thermal_pid cycle, peltier is ON whenever cooling is active.
+        return thermal_pid.cooling
+
     except Exception as exc:
-        print("[oled] rgb status error:", exc)
+        print("[oled] peltier status error:", exc)
         return False
 
 
@@ -245,10 +173,5 @@ def update_oled():
 
 
 def get_status():
-    #rgb_values = _safe_get_latest(rgb_sensor)
-    #temp_values = _safe_get_latest(temperature)
-    #cooler_state = _cooler_running(pumps)
-    #waste_state = _waste_running(pumps)
-    #peltier_state = peltier.running()
     SYSTEM_STATE["uptime_ms"] = time.ticks_ms()
     return SYSTEM_STATE

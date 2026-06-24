@@ -11,7 +11,7 @@ class Feeding:
 
     DEFAULT_TARGET_DENSITY = 7000
     LASER_WAIT_MS = 200
-    DENSITY_DROP_PER_SECOND = 200
+    DENSITY_DROP_PER_SECOND = 20000
     MAX_PUMP_MS = 10000
 
     def __init__(
@@ -29,7 +29,7 @@ class Feeding:
             PINS["laser"]["relay"]
         )
 
-        self.light_sensor = light_sensor or RGBSensor(
+        self.light_sensor = RGBSensor(
             PINS["rgb"]["sda"],
             PINS["rgb"]["scl"],
             led_pin=PINS["rgb"]["led"]
@@ -76,6 +76,8 @@ class Feeding:
 
         if light_reading is None:
             raise ValueError("OD sensor returned None")
+
+        print("[feeding] reading green:", light_reading)
 
         density = self.light_to_density(light_reading)
         density = 5000  # Temporary test value
@@ -129,7 +131,7 @@ class Feeding:
             )
 
             if pump_ms > 0 and self.enabled:
-                self._pump_on()
+                #self._pump_on()
                 time.sleep_ms(pump_ms)
                 self._pump_off()
 
