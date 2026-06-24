@@ -34,6 +34,7 @@ class Feeding:
             PINS["rgb"]["scl"],
             led_pin=PINS["rgb"]["led"]
         )
+        self.light_sensor.init()
 
         self.waste_pump = waste_pump or Pump(
             "waste pump",
@@ -70,12 +71,14 @@ class Feeding:
         self.laser_relay.on()
         time.sleep_ms(self.LASER_WAIT_MS)
 
-        light_reading = self.light_sensor.read_raw()["green"]
+        raw_reading = self.light_sensor.read_raw()
 
         self.laser_relay.off()
 
-        if light_reading is None:
-            raise ValueError("OD sensor returned None")
+        if raw_reading is None:
+            raise ValueError("OD sensor returned None (Sensor not ready)")
+
+        light_reading = raw_reading["green"]
 
         print("[feeding] reading green:", light_reading)
 
