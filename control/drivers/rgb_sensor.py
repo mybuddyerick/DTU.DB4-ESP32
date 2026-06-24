@@ -106,9 +106,14 @@ class RGBSensor:
     def data_ready(self):
         return (self.read_reg(STATUS) & 0x01) == 0x01
 
-    def read_raw(self):
-        if not self.data_ready():
-            return None
+    def read_raw(self, timeout_ms=200):
+        from time import ticks_ms, ticks_diff, sleep
+        start = ticks_ms()
+
+        while not self.data_ready():
+            if ticks_diff(ticks_ms(), start) > timeout_ms:
+                return None
+            sleep(0.01)
 
         return {
             "clear": self.read_word(CDATA),
